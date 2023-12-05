@@ -1,0 +1,74 @@
+KVERSION = @KVERSION@
+KDIR = @KDIR@
+KINSTDIR = $(shell dirname @KDIR@)
+KOPTS = @KOPTS@
+IPTABLES_CFLAGS = @IPTABLES_CFLAGS@
+IPTABLES_MODULES = @IPTABLES_MODULES@
+DEPMOD = /sbin/depmod -a $(KVERSION)
+CARGS = @CARGS@
+CC = gcc
+
+# https://www.kernel.org/doc/Documentation/kbuild/modules.txt
+# https://www.kernel.org/doc/Documentation/kbuild/makefiles.txt
+obj-m = xt_LOGD.o
+ccflags-y = @KOPTS@
+
+all: xt_LOGD.ko libxt_LOGD.so
+
+xt_LOGD.ko: xt_LOGD.c Makefile
+	@echo Compiling for kernel $(KVERSION)
+	make -C $(KDIR) M=$(CURDIR) modules CONFIG_DEBUG_INFO=y
+	@touch $@
+	
+sparse: | xt_LOGD.c Makefile
+	@rm -f xt_LOGD.ko xt_LOGD.o
+	@echo Compiling for kernel $(KVERSION)
+	make -C $(KDIR) M=$(CURDIR) modules C=1
+	@touch xt_LOGD.ko
+minstall: | xt_LOGD.ko
+	@echo " *"
+	make -C $(KDIR) M=$(CURDIR) modules_install INSTALL_MOD_PATH=$(DESTDIR)
+	$(DEPMOD)
+mclean:
+	make -C $(KDIR) M=$(CURDIR) clean
+lclean:
+	-rm -f *.so *_sh.o
+clean: mclean lclean
+	-rm -f *.so *.o modules.order
+	
+libxt_LOGD_sh.o: libxt_LOGD.c
+	gcc -O2 -Wall -Wunused $(IPTABLES_CFLAGS) -fPIC -o $@ -c libxt_LOGD.c
+
+
+%.so: %_sh.o
+	gcc -shared -lxtables -o $@ $<
+
+linstall: | libxt_LOGD.so
+	@echo " *"
+	install -D libxt_LOGD.so $(DESTDIR)$(IPTABLES_MODULES)/libxt_LOGD.so
+
+dinstall:
+	@echo " *"
+	@./install-dkms.sh --install
+
+install: minstall linstall
+
+uninstall:
+	-rm -f $(DESTDIR)$(IPTABLES_MODULES)/libxt_LOGD.so
+	@if [ "@DKMSINSTALL@" = dinstall ]; then ./install-dkms.sh --uninstall; fi
+	-rm -f $(DESTDIR)$(KINSTDIR)/extra/xt_LOGD.ko
+
+Makefile: Makefile.in configure
+	./configure --make ${CARGS}
+
+load: all
+	-insmod xt_LOGD.ko
+
+unload:
+	-rmmod xt_LOGD.ko
+
+reload: unload load
+
+ChangeLog:
+	gitlog-to-changelog > ChangeLog
+.PHONY: ChangeLog
