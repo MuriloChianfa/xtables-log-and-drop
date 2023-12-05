@@ -16,17 +16,17 @@
 
 #include <linux/netfilter.h>
 #include <linux/netfilter/x_tables.h>
-#include <linux/netfilter/xt_LOG.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
 #include <net/netfilter/nf_log.h>
+#include "xt_LOGD.h"
 
 MODULE_ALIAS("ipt_LOGD");
 MODULE_ALIAS("ip6t_LOGD");
 
 static unsigned int
-log_tg(struct sk_buff *skb, const struct xt_action_param *par)
+logd_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
-	const struct xt_log_info *loginfo = par->targinfo;
+	const struct xt_logd_info *loginfo = par->targinfo;
 	struct net *net = xt_net(par);
 	struct nf_loginfo li;
 
@@ -39,9 +39,9 @@ log_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	return NF_DROP;
 }
 
-static int log_tg_check(const struct xt_tgchk_param *par)
+static int logd_tg_check(const struct xt_tgchk_param *par)
 {
-	const struct xt_log_info *loginfo = par->targinfo;
+	const struct xt_logd_info *loginfo = par->targinfo;
 	int ret;
 
 	if (par->family != NFPROTO_IPV4 && par->family != NFPROTO_IPV6)
@@ -67,46 +67,46 @@ static int log_tg_check(const struct xt_tgchk_param *par)
 	return ret;
 }
 
-static void log_tg_destroy(const struct xt_tgdtor_param *par)
+static void logd_tg_destroy(const struct xt_tgdtor_param *par)
 {
 	nf_logger_put(par->family, NF_LOG_TYPE_LOG);
 }
 
-static struct xt_target log_tg_regs[] __read_mostly = {
+static struct xt_target logd_tg_regs[] __read_mostly = {
 	{
 		.name		= "LOGD",
 		.family		= NFPROTO_IPV4,
-		.target		= log_tg,
-		.targetsize	= sizeof(struct xt_log_info),
-		.checkentry	= log_tg_check,
-		.destroy	= log_tg_destroy,
+		.target		= logd_tg,
+		.targetsize	= sizeof(struct xt_logd_info),
+		.checkentry	= logd_tg_check,
+		.destroy	= logd_tg_destroy,
 		.me		= THIS_MODULE,
 	},
 #if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 	{
 		.name		= "LOGD",
 		.family		= NFPROTO_IPV6,
-		.target		= log_tg,
-		.targetsize	= sizeof(struct xt_log_info),
-		.checkentry	= log_tg_check,
-		.destroy	= log_tg_destroy,
+		.target		= logd_tg,
+		.targetsize	= sizeof(struct xt_logd_info),
+		.checkentry	= logd_tg_check,
+		.destroy	= logd_tg_destroy,
 		.me		= THIS_MODULE,
 	},
 #endif
 };
 
-static int __init log_tg_init(void)
+static int __init logd_tg_init(void)
 {
-	return xt_register_targets(log_tg_regs, ARRAY_SIZE(log_tg_regs));
+	return xt_register_targets(logd_tg_regs, ARRAY_SIZE(logd_tg_regs));
 }
 
-static void __exit log_tg_exit(void)
+static void __exit logd_tg_exit(void)
 {
-	xt_unregister_targets(log_tg_regs, ARRAY_SIZE(log_tg_regs));
+	xt_unregister_targets(logd_tg_regs, ARRAY_SIZE(logd_tg_regs));
 }
 
-module_init(log_tg_init);
-module_exit(log_tg_exit);
+module_init(logd_tg_init);
+module_exit(logd_tg_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("MuriloChianfa <murilo.chianfa@outlook.com>");
